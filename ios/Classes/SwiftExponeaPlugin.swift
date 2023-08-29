@@ -54,7 +54,7 @@ protocol IsExponeaFlutterSDK {
 public class ExponeaFlutterVersion: NSObject, ExponeaVersionProvider {
     required public override init() { }
     public func getVersion() -> String {
-        "1.4.3"
+        "1.4.4"
     }
 }
 
@@ -384,6 +384,7 @@ public class SwiftExponeaPlugin: NSObject, FlutterPlugin {
                 pushNotificationTracking: config.pushNotificationTracking,
                 automaticSessionTracking: config.automaticSessionTracking,
                 defaultProperties: config.defaultProperties,
+                inAppContentBlocksPlaceholders: nil,
                 flushingSetup: config.flushingSetup,
                 allowDefaultCustomerProperties: config.allowDefaultCustomerProperties,
                 advancedAuthEnabled: config.advancedAuthEnabled
