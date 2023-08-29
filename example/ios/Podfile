@@ -36,7 +36,7 @@ target 'Runner' do
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-  pod 'ExponeaSDK', :git => 'https://github.com/TFG-Labs/exponea-ios-sdk'
+  # pod 'ExponeaSDK', :git => 'https://github.com/TFG-Labs/exponea-ios-sdk'
 end
 
 target 'ExponeaTests' do
@@ -44,6 +44,7 @@ target 'ExponeaTests' do
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # pod 'ExponeaSDK', :git => 'https://github.com/TFG-Labs/exponea-ios-sdk'
 
   pod 'Quick', '4.0.0'
   pod 'Nimble', '9.2.1'
