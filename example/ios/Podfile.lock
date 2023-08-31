@@ -2,9 +2,9 @@ PODS:
   - AnyCodable-FlightSchool (0.6.3)
   - exponea (0.0.1):
     - AnyCodable-FlightSchool (= 0.6.3)
-    - ExponeaSDK (= 2.17.2)
+    - ExponeaSDK (= 2.17.3)
     - Flutter
-  - ExponeaSDK (2.17.2):
+  - ExponeaSDK (2.17.3):
     - SwiftSoup (= 2.6.1)
   - ExponeaSDK-Notifications (2.17.0)
   - Flutter (1.0.0)
@@ -48,8 +48,8 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   AnyCodable-FlightSchool: 1c9890be5884140c60da5fde1b66380dec4c244a
-  exponea: d62592aae9993db4bd57949d2a600932fd11a8b0
-  ExponeaSDK: 60e9828ef57ad0881921c70229d34ac78bdae3f3
+  exponea: 96db48f2cdd1e3029fe7f0b5009dce99ed00702b
+  ExponeaSDK: 5da7f513042ff7db798ad4c82d6286aff0b9577b
   ExponeaSDK-Notifications: 959789fa334f9ef266cb612a61ce8383e70b0839
   Flutter: f04841e97a9d0b0a8025694d0796dd46242b2854
   Nimble: e7e615c0335ee4bf5b0d786685451e62746117d5
