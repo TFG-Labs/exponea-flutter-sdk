@@ -20,6 +20,8 @@ class ConfigPage extends StatefulWidget {
 }
 
 class _ConfigPageState extends State<ConfigPage> {
+  static const _platform = MethodChannel('com.exponea.example/utils');
+
   static const _spKeyProject = 'project_token';
   static const _spKeyAuth = 'auth_token';
   static const _spKeyAdvancedAuth = 'advanced_auth_token';
@@ -32,6 +34,14 @@ class _ConfigPageState extends State<ConfigPage> {
   late final TextEditingController _advancedAuthTokenController;
   late final TextEditingController _baseUrlController;
   late final ValueNotifier<bool> _sessionTrackingController;
+
+  Future<int?> getAndroidPushIcon() async {
+    try {
+      return await _platform.invokeMethod<int?>('getAndroidPushIcon');
+    } catch (e) {
+      return null;
+    }
+  }
 
   @override
   void initState() {
@@ -117,6 +127,8 @@ class _ConfigPageState extends State<ConfigPage> {
   }
 
   Future<void> _configure(BuildContext context) async {
+    final pushIcon = await getAndroidPushIcon();
+
     _loading.value = true;
     final projectToken = _projectTokenController.text.trim();
     final authToken = _authTokenController.text.trim();
@@ -157,27 +169,32 @@ class _ConfigPageState extends State<ConfigPage> {
       //   ],
       // },
       advancedAuthEnabled: advancedAuthToken.isNotEmpty,
-      android: const AndroidExponeaConfiguration(
+      android: AndroidExponeaConfiguration(
         automaticPushNotifications: true,
         httpLoggingLevel: HttpLoggingLevel.body,
         pushChannelDescription: 'test-channel-desc',
         pushChannelId: 'test-channel-id',
         pushChannelName: 'test-channel-name',
         pushNotificationImportance: PushNotificationImportance.normal,
-        pushAccentColor: 0x3000FF00,
-        // pushIcon: 11,
+        pushAccentColor: 0xFFFFD500,
+        pushIcon: pushIcon,
       ),
       ios: const IOSExponeaConfiguration(
         requirePushAuthorization: true,
         appGroup: 'group.com.exponea.ExponeaSDK-Example2',
       ),
+      inAppContentBlockPlaceholdersAutoLoad: const ['example_top', 'example_list']
     );
     try {
       _plugin.setAppInboxProvider(AppInboxStyle(
         appInboxButton: SimpleButtonStyle(
           backgroundColor: 'rgb(245, 195, 68)',
           borderRadius: '10dp',
-          showIcon: 'iVBORw0KGgoAAAANSUhEUgAAAEUAAABICAMAAACXzcjFAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAAITgAACE4AUWWMWAAAAA/UExURUdwTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALoT4l0AAAAUdFJOUwDvMHAgvxDfn0Bgz4BQr5B/j7CgEZfI5wAAAcJJREFUWMPtl9mWhCAMRBtFNlF74f+/dZBwRoNBQftpxnrpPqjXUFRQH49bt74o0ejrEC6dk+IqRTkve5XSzRR1U/4oRRirlHphih9RduDFcQ1J85HFFBh0qozTMLdHcZLXQHKUEszcfQeUAgxAWMu9MMUPNC0U2h1AnunNkpWOpT53IQNUAhCR1AK2waT0sSltdLkXC4V3scIWqhUHQY319/6fx0RK4L9XJ41lpnRg42f+mUS/mMrZUjAhjaYMuXnZcMW4siua55o9UyyOX+iGUJf8vWzasWZcopamOFl9Afd7ZU1hnM4xzmtc7q01nDqwYJLQt9tbrpKvMl216ZyO7ASTaTPAEOOMijBYa+iV64gehjlNeDCkyvUKK1B1WGGTHOqpKTlaGrfpRrKIYvAETlIm9OpwlsIESlMRha3tg0T0YhX5cX08S0FjIt7NaN1K4pIySuzclewZipDHHhSMNTKzM1RR0M6w6YJiis99FxnbJ0cFxbujB9NQe2MVJat/RHEVXw2corCad7Z56eLmSO3pHl6oePobU6w7pWS7F+wMRNJPhkoNG7/q58QMtXYfWTUbK/Lfq4Xilz9Ib926qB8ZxV6DpmAIowAAAABJRU5ErkJggg==',
+          showIcon: true,
+          enabled: true,
+          textSize: '12dp',
+          textOverride: 'App Inbox',
+          textWeight: 'normal',
           textColor: 'white',
         ),
         detailView: DetailViewStyle(

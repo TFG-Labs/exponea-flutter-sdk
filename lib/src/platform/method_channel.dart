@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:exponea/exponea.dart';
 import 'package:flutter/services.dart';
 
@@ -13,8 +15,10 @@ class MethodChannelExponeaPlatform extends ExponeaPlatform {
   static const _openedPushEventChannel = EventChannel(_openedPushStreamName);
 
   static const _receivedPushStreamName = "$_channelName/received_push";
-  static const _receivedPushEventChannel =
-      EventChannel(_receivedPushStreamName);
+  static const _receivedPushEventChannel = EventChannel(_receivedPushStreamName);
+
+  static const _inAppMessageActionStreamName = '$_channelName/in_app_messages';
+  static const _inAppMessageActionEventChannel = EventChannel(_inAppMessageActionStreamName);
 
   static const _methodConfigure = 'configure';
   static const _methodIsConfigured = 'isConfigured';
@@ -45,9 +49,36 @@ class MethodChannelExponeaPlatform extends ExponeaPlatform {
   static const _markAppInboxAsRead = 'markAppInboxAsRead';
   static const _fetchAppInbox = 'fetchAppInbox';
   static const _fetchAppInboxItem = 'fetchAppInboxItem';
+  static const _setInAppMessageActionHandler = 'setInAppMessageActionHandler';
+  static const _trackInAppContentBlockClick = 'trackInAppContentBlockClick';
+  static const _trackInAppContentBlockClickWithoutTrackingConsent = 'trackInAppContentBlockClickWithoutTrackingConsent';
+  static const _trackInAppContentBlockClose = 'trackInAppContentBlockClose';
+  static const _trackInAppContentBlockCloseWithoutTrackingConsent = 'trackInAppContentBlockCloseWithoutTrackingConsent';
+  static const _trackInAppContentBlockShown = 'trackInAppContentBlockShown';
+  static const _trackInAppContentBlockShownWithoutTrackingConsent = 'trackInAppContentBlockShownWithoutTrackingConsent';
+  static const _trackInAppContentBlockError = 'trackInAppContentBlockError';
+  static const _trackInAppContentBlockErrorWithoutTrackingConsent = 'trackInAppContentBlockErrorWithoutTrackingConsent';
+  static const _trackInAppMessageClick = 'trackInAppMessageClick';
+  static const _trackInAppMessageClickWithoutTrackingConsent = 'trackInAppMessageClickWithoutTrackingConsent';
+  static const _trackInAppMessageClose = 'trackInAppMessageClose';
+  static const _trackInAppMessageCloseWithoutTrackingConsent = 'trackInAppMessageCloseWithoutTrackingConsent';
+  static const _trackPaymentEvent = 'trackPaymentEvent';
+  static const _trackPushToken = 'trackPushToken';
+  static const _trackHmsPushToken = 'trackHmsPushToken';
+  static const _handlePushToken = 'handlePushToken';
+  static const _handleHmsPushToken = 'handleHmsPushToken';
+  static const _trackClickedPush = 'trackClickedPush';
+  static const _trackClickedPushWithoutTrackingConsent = 'trackClickedPushWithoutTrackingConsent';
+  static const _trackDeliveredPush = 'trackDeliveredPush';
+  static const _trackDeliveredPushWithoutTrackingConsent = 'trackDeliveredPushWithoutTrackingConsent';
+  static const _isBloomreachNotification = 'isBloomreachNotification';
+  static const _handleCampaignClick = 'handleCampaignClick';
+  static const _handlePushNotificationOpened = 'handlePushNotificationOpened';
+  static const _handlePushNotificationOpenedWithoutTrackingConsent = 'handlePushNotificationOpenedWithoutTrackingConsent';
 
   Stream<OpenedPush>? _openedPushStream;
   Stream<ReceivedPush>? _receivedPushStream;
+  Stream<InAppMessageAction>? _inAppMessageActionStream;
 
   @override
   Future<bool> configure(ExponeaConfiguration configuration) async {
@@ -179,8 +210,30 @@ class MethodChannelExponeaPlatform extends ExponeaPlatform {
   }
 
   @override
+  Stream<InAppMessageAction> inAppMessageActionStream({bool overrideDefaultBehavior = false, bool trackActions = true}) {
+    _channel.invokeMethod<void>(
+      _setInAppMessageActionHandler,
+      {
+        'overrideDefaultBehavior': overrideDefaultBehavior,
+        'trackActions': trackActions,
+      },
+    );
+    _inAppMessageActionStream ??= _inAppMessageActionEventChannel
+        .receiveBroadcastStream()
+        .cast<Map<dynamic, dynamic>>()
+        .map((event) => InAppMessageActionEncoder.decode(event));
+    return _inAppMessageActionStream!;
+  }
+
+  @override
   Future<void> checkPushSetup() async {
     await _channel.invokeMethod<void>(_methodCheckPushSetup);
+  }
+
+  @override
+  Future<bool> requestPushAuthorization() async {
+    return (await _channel
+        .invokeMethod<bool>(_methodRequestPushAuthorization))!;
   }
 
   @override
@@ -252,5 +305,194 @@ class MethodChannelExponeaPlatform extends ExponeaPlatform {
     final inData = messageId;
     final outData = (await _channel.invokeMapMethod<String, dynamic>(method, inData))!;
     return AppInboxCoder.decodeMessage(outData);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockClick(String placeholderId, InAppContentBlock contentBlock, InAppContentBlockAction action) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+      'action': InAppContentBlockActionEncoder.encode(action)
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockClick, data);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockClickWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock, InAppContentBlockAction action) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+      'action': InAppContentBlockActionEncoder.encode(action)
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockClickWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockClose(String placeholderId, InAppContentBlock contentBlock) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockClose, data);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockCloseWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockCloseWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockShown(String placeholderId, InAppContentBlock contentBlock) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockShown, data);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockShownWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockShownWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockError(String placeholderId, InAppContentBlock contentBlock, String errorMessage) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+      'errorMessage': errorMessage,
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockError, data);
+  }
+
+  @override
+  Future<void> trackInAppContentBlockErrorWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock, String errorMessage) async {
+    final contentBlockData = InAppContentBlockEncoder.encode(contentBlock);
+    final data = {
+      'placeholderId': placeholderId,
+      'contentBlock': jsonEncode(contentBlockData),
+      'errorMessage': errorMessage,
+    };
+    await _channel.invokeMethod<void>(_trackInAppContentBlockErrorWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<void> trackInAppMessageClick(InAppMessage message, InAppMessageButton button) async {
+    final data = {
+      'message': InAppMessageEncoder.encode(message),
+      'button': InAppMessageButtonEncoder.encode(button),
+    };
+    await _channel.invokeMethod<void>(_trackInAppMessageClick, data);
+  }
+
+  @override
+  Future<void> trackInAppMessageClickWithoutTrackingConsent(InAppMessage message, InAppMessageButton button) async {
+    final data = {
+      'message': InAppMessageEncoder.encode(message),
+      'button': InAppMessageButtonEncoder.encode(button),
+    };
+    await _channel.invokeMethod<void>(_trackInAppMessageClickWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<void> trackInAppMessageClose(InAppMessage message, {bool interaction = true}) async {
+    final data = {
+      'message': InAppMessageEncoder.encode(message),
+      'interaction': interaction,
+    };
+    await _channel.invokeMethod<void>(_trackInAppMessageClose, data);
+  }
+
+  @override
+  Future<void> trackInAppMessageCloseWithoutTrackingConsent(InAppMessage message, {bool interaction = true}) async {
+    final data = {
+      'message': InAppMessageEncoder.encode(message),
+      'interaction': interaction,
+    };
+    await _channel.invokeMethod<void>(_trackInAppMessageCloseWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<void> trackPaymentEvent(PurchasedItem purchasedItem, {DateTime? timestamp}) async {
+    final data = {
+      'purchasedItem': PurchasedItemEncoder.encode(purchasedItem),
+      'timestamp': timestamp?.let(DateTimeEncoder.encode),
+    };
+    await _channel.invokeMethod<void>(_trackPaymentEvent, data);
+  }
+
+  @override
+  Future<void> trackPushToken(String token) async {
+    await _channel.invokeMethod<void>(_trackPushToken, token);
+  }
+
+  @override
+  Future<void> trackHmsPushToken(String token) async {
+    await _channel.invokeMethod<void>(_trackHmsPushToken, token);
+  }
+
+  @override
+  Future<void> handlePushToken(String token) async {
+    await _channel.invokeMethod<void>(_handlePushToken, token);
+  }
+
+  @override
+  Future<void> handleHmsPushToken(String token) async {
+    await _channel.invokeMethod<void>(_handleHmsPushToken, token);
+  }
+
+  @override
+  Future<void> trackClickedPush(Map<String, dynamic> data) async {
+    await _channel.invokeMethod<void>(_trackClickedPush, data);
+  }
+
+  @override
+  Future<void> trackClickedPushWithoutTrackingConsent(Map<String, dynamic> data) async {
+    await _channel.invokeMethod<void>(_trackClickedPushWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<void> trackDeliveredPush(Map<String, dynamic> data) async {
+    await _channel.invokeMethod<void>(_trackDeliveredPush, data);
+  }
+
+  @override
+  Future<void> trackDeliveredPushWithoutTrackingConsent(Map<String, dynamic> data) async {
+    await _channel.invokeMethod<void>(_trackDeliveredPushWithoutTrackingConsent, data);
+  }
+
+  @override
+  Future<bool> isBloomreachNotification(Map<String, String> data) async {
+    return (await _channel.invokeMethod<bool>(_isBloomreachNotification, data))!;
+  }
+
+  @override
+  Future<void> handleCampaignClick(String url) async {
+    await _channel.invokeMethod<void>(_handleCampaignClick, url);
+  }
+
+  @override
+  Future<void> handlePushNotificationOpened(Map<String, dynamic> data) async {
+    await _channel.invokeMethod<void>(_handlePushNotificationOpened, data);
+  }
+
+  @override
+  Future<void> handlePushNotificationOpenedWithoutTrackingConsent(Map<String, dynamic> data) async {
+    await _channel.invokeMethod<void>(_handlePushNotificationOpenedWithoutTrackingConsent, data);
   }
 }

@@ -1,16 +1,18 @@
 buildscript {
     ext {
         minSdkVersion = 21
-        compileSdkVersion = 31
-        targetSdkVersion = 31
+        compileSdkVersion = 34
+        targetSdkVersion = 34
 
-        androidGradlePluginVersion = '4.1.0'
-        kotlinVersion = '1.7.10'
+        androidGradlePluginVersion = '7.3.1'
+        kotlinVersion = '1.7.20'
         multidexVersion = '2.0.1'
         firebaseVersion = '23.0.0'
         agconnectVersion = '1.5.2.300'
-        hmsVersion = '5.3.0.304'
-        googleServicesVersion = '4.3.10'
+        hmsVersion = '6.1.0.300'
+        googleServicesVersion = '4.3.14'
+        exponeaSdkVersion = '3.16.0'
+        gsonVersion = '2.10.1'
     }
     repositories {
         google()
@@ -40,6 +42,6 @@ subprojects {
     project.evaluationDependsOn(':app')
 }
 
-task clean(type: Delete) {
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

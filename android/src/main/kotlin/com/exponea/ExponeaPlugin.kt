@@ -3,6 +3,7 @@ package com.exponea
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -12,20 +13,33 @@ import com.exponea.data.ConsentEncoder
 import com.exponea.data.Customer
 import com.exponea.data.Event
 import com.exponea.data.ExponeaConfigurationParser
+import com.exponea.data.InAppContentBlockActionCoder
 import com.exponea.data.OpenedPush
 import com.exponea.data.ReceivedPush
+import com.exponea.data.InAppMessageAction
 import com.exponea.data.RecommendationEncoder
 import com.exponea.data.RecommendationOptionsEncoder
+import com.exponea.data.InAppMessageCoder
+import com.exponea.data.NotificationCoder
+import com.exponea.data.PurchasedItemCoder
+import com.exponea.data.getOptional
 import com.exponea.exception.ExponeaException
 import com.exponea.sdk.Exponea
 import com.exponea.sdk.models.CustomerIds
 import com.exponea.sdk.models.ExponeaConfiguration
 import com.exponea.sdk.models.FlushMode
 import com.exponea.sdk.models.FlushPeriod
+import com.exponea.sdk.models.InAppContentBlock
 import com.exponea.sdk.models.PropertiesList
+import com.exponea.sdk.models.InAppMessage
+import com.exponea.sdk.models.InAppMessageButton
+import com.exponea.sdk.models.InAppMessageCallback
+import com.exponea.sdk.style.appinbox.StyledAppInboxProvider
 import com.exponea.sdk.util.Logger
 import com.exponea.style.AppInboxStyleParser
 import com.exponea.widget.FlutterAppInboxButton
+import com.exponea.widget.FlutterInAppContentBlockPlaceholderFactory
+import com.google.gson.Gson
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -48,6 +62,7 @@ class ExponeaPlugin : FlutterPlugin, ActivityAware {
         private const val CHANNEL_NAME = "com.exponea"
         private const val STREAM_NAME_OPENED_PUSH = "$CHANNEL_NAME/opened_push"
         private const val STREAM_NAME_RECEIVED_PUSH = "$CHANNEL_NAME/received_push"
+        private const val STREAM_NAME_IN_APP_MESSAGES = "$CHANNEL_NAME/in_app_messages"
 
         fun handleCampaignIntent(intent: Intent?, applicationContext: Context) {
             Log.d(TAG, "handleCampaignIntent()")
@@ -90,6 +105,7 @@ class ExponeaPlugin : FlutterPlugin, ActivityAware {
     private var openedPushChannel: EventChannel? = null
     private var openedPushStreamHandler: OpenedPushStreamHandler? = null
     private var receivedPushChannel: EventChannel? = null
+    private var inAppMessagesChannel: EventChannel? = null
 
     override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         val context = binding.applicationContext
@@ -108,9 +124,16 @@ class ExponeaPlugin : FlutterPlugin, ActivityAware {
             val handler = ReceivedPushStreamHandler()
             setStreamHandler(handler)
         }
+        inAppMessagesChannel = EventChannel(binding.binaryMessenger, STREAM_NAME_IN_APP_MESSAGES).apply {
+            val handler = InAppMessageActionStreamHandler.currentInstance
+            setStreamHandler(handler)
+        }
         binding
             .platformViewRegistry
             .registerViewFactory("FluffView", FlutterAppInboxButton.Factory())
+        binding
+            .platformViewRegistry
+            .registerViewFactory("InAppContentBlockPlaceholder", FlutterInAppContentBlockPlaceholderFactory(binding))
     }
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
@@ -164,6 +187,7 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
         private const val METHOD_GET_LOG_LEVEL = "getLogLevel"
         private const val METHOD_SET_LOG_LEVEL = "setLogLevel"
         private const val METHOD_CHECK_PUSH_SETUP = "checkPushSetup"
+        private const val METHOD_REQUEST_PUSH_AUTHORIZATION = "requestPushAuthorization"
         private const val METHOD_SET_APP_INBOX_PROVIDER = "setAppInboxProvider"
         private const val METHOD_TRACK_APP_INBOX_OPENED = "trackAppInboxOpened"
         private const val METHOD_TRACK_APP_INBOX_OPENED_WITHOUT_TRACKING_CONSENT = "trackAppInboxOpenedWithoutTrackingConsent"
@@ -172,6 +196,32 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
         private const val METHOD_MARK_APP_INBOX_AS_READ = "markAppInboxAsRead"
         private const val METHOD_FETCH_APP_INBOX = "fetchAppInbox"
         private const val METHOD_FETCH_APP_INBOX_ITEM = "fetchAppInboxItem"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLICK = "trackInAppContentBlockClick"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLICK_WITHOUT_TRACKING_CONSENT = "trackInAppContentBlockClickWithoutTrackingConsent"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLOSE = "trackInAppContentBlockClose"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLOSE_WITHOUT_TRACKING_CONSENT = "trackInAppContentBlockCloseWithoutTrackingConsent"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_SHOWN = "trackInAppContentBlockShown"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_SHOWN_WITHOUT_TRACKING_CONSENT = "trackInAppContentBlockShownWithoutTrackingConsent"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_ERROR = "trackInAppContentBlockError"
+        private const val METHOD_TRACK_IN_APP_CONTENT_BLOCK_ERROR_WITHOUT_TRACKING_CONSENT = "trackInAppContentBlockErrorWithoutTrackingConsent"
+        private const val METHOD_SET_IN_APP_MESSAGE_ACTION_HANDLER = "setInAppMessageActionHandler"
+        private const val METHOD_TRACK_IN_APP_MESSAGE_CLICK = "trackInAppMessageClick"
+        private const val METHOD_TRACK_IN_APP_MESSAGE_CLICK_WITHOUT_TRACKING_CONSENT = "trackInAppMessageClickWithoutTrackingConsent"
+        private const val METHOD_TRACK_IN_APP_MESSAGE_CLOSE = "trackInAppMessageClose"
+        private const val METHOD_TRACK_IN_APP_MESSAGE_CLOSE_WITHOUT_TRACKING_CONSENT = "trackInAppMessageCloseWithoutTrackingConsent"
+        private const val METHOD_TRACK_PAYMENT_EVENT = "trackPaymentEvent"
+        private const val METHOD_TRACK_PUSH_TOKEN = "trackPushToken"
+        private const val METHOD_TRACK_HMS_PUSH_TOKEN = "trackHmsPushToken"
+        private const val METHOD_HANDLE_PUSH_TOKEN = "handlePushToken"
+        private const val METHOD_HANDLE_HMS_PUSH_TOKEN = "handleHmsPushToken"
+        private const val METHOD_TRACK_CLICKED_PUSH = "trackClickedPush"
+        private const val METHOD_TRACK_CLICKED_PUSH_WITHOUT_TRACKING_CONSENT = "trackClickedPushWithoutTrackingConsent"
+        private const val METHOD_TRACK_DELIVERED_PUSH = "trackDeliveredPush"
+        private const val METHOD_TRACK_DELIVERED_PUSH_WITHOUT_TRACKING_CONSENT = "trackDeliveredPushWithoutTrackingConsent"
+        private const val METHOD_IS_BLOOMREACH_NOTIFICATION = "isBloomreachNotification"
+        private const val METHOD_HANDLE_CAMPAIGN_CLICK = "handleCampaignClick"
+        private const val METHOD_HANDLE_PUSH_NOTIFICATION_OPENED = "handlePushNotificationOpened"
+        private const val METHOD_HANDLE_PUSH_NOTIFICATION_OPENED_WITHOUT_TRACKING_CONSENT = "handlePushNotificationOpenedWithoutTrackingConsent"
     }
 
     var activity: Context? = null
@@ -242,6 +292,9 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
             METHOD_CHECK_PUSH_SETUP -> {
                 checkPushSetup(result)
             }
+            METHOD_REQUEST_PUSH_AUTHORIZATION -> {
+                requestPushAuthorization(result)
+            }
             METHOD_SET_APP_INBOX_PROVIDER -> {
                 setAppInboxProvider(call.arguments, result)
             }
@@ -266,6 +319,84 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
             METHOD_FETCH_APP_INBOX_ITEM -> {
                 fetchAppInboxItem(call.arguments, result)
             }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLICK -> {
+                trackInAppContentBlockClick(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLICK_WITHOUT_TRACKING_CONSENT -> {
+                trackInAppContentBlockClickWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLOSE -> {
+                trackInAppContentBlockClose(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_CLOSE_WITHOUT_TRACKING_CONSENT -> {
+                trackInAppContentBlockCloseWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_SHOWN -> {
+                trackInAppContentBlockShown(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_SHOWN_WITHOUT_TRACKING_CONSENT -> {
+                trackInAppContentBlockShownWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_ERROR -> {
+                trackInAppContentBlockError(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_CONTENT_BLOCK_ERROR_WITHOUT_TRACKING_CONSENT -> {
+                trackInAppContentBlockErrorWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_SET_IN_APP_MESSAGE_ACTION_HANDLER -> {
+                setInAppMessageActionHandler(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_MESSAGE_CLICK -> {
+                trackInAppMessageClick(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_MESSAGE_CLICK_WITHOUT_TRACKING_CONSENT -> {
+                trackInAppMessageClickWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_MESSAGE_CLOSE -> {
+                trackInAppMessageClose(call.arguments, result)
+            }
+            METHOD_TRACK_IN_APP_MESSAGE_CLOSE_WITHOUT_TRACKING_CONSENT -> {
+                trackInAppMessageCloseWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_TRACK_PAYMENT_EVENT -> {
+                trackPaymentEvent(call.arguments, result)
+            }
+            METHOD_TRACK_PUSH_TOKEN -> {
+                trackPushToken(call.arguments, result)
+            }
+            METHOD_TRACK_HMS_PUSH_TOKEN -> {
+                trackHmsPushToken(call.arguments, result)
+            }
+            METHOD_HANDLE_PUSH_TOKEN -> {
+                handlePushToken(call.arguments, result)
+            }
+            METHOD_HANDLE_HMS_PUSH_TOKEN -> {
+                handleHmsPushToken(call.arguments, result)
+            }
+            METHOD_TRACK_CLICKED_PUSH -> {
+                trackClickedPush(call.arguments, result)
+            }
+            METHOD_TRACK_CLICKED_PUSH_WITHOUT_TRACKING_CONSENT -> {
+                trackClickedPushWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_TRACK_DELIVERED_PUSH -> {
+                trackDeliveredPush(call.arguments, result)
+            }
+            METHOD_TRACK_DELIVERED_PUSH_WITHOUT_TRACKING_CONSENT -> {
+                trackDeliveredPushWithoutTrackingConsent(call.arguments, result)
+            }
+            METHOD_IS_BLOOMREACH_NOTIFICATION -> {
+                isBloomreachNotification(call.arguments, result)
+            }
+            METHOD_HANDLE_CAMPAIGN_CLICK -> {
+                handleCampaignClick(call.arguments, result)
+            }
+            METHOD_HANDLE_PUSH_NOTIFICATION_OPENED -> {
+                handlePushNotificationOpened(call.arguments, result)
+            }
+            METHOD_HANDLE_PUSH_NOTIFICATION_OPENED_WITHOUT_TRACKING_CONSENT -> {
+                handlePushNotificationOpenedWithoutTrackingConsent(call.arguments, result)
+            }
             else -> {
                 result.notImplemented()
             }
@@ -273,7 +404,7 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
     }
 
     private fun trackAppInboxOpened(args: Any?, result: Result) = runAsync(result) {
-        requireNotConfigured()
+        requireConfigured()
         val messageData = args as Map<String, Any?>
         Exponea.fetchAppInboxItem(messageId = messageData.getRequired("id")) { nativeMessage ->
             // we need to fetch native MessageItem; method needs syncToken and customerIds to be fetched
@@ -287,7 +418,7 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
     }
 
     private fun trackAppInboxOpenedWithoutTrackingConsent(args: Any?, result: Result) = runAsync(result) {
-        requireNotConfigured()
+        requireConfigured()
         val messageData = args as Map<String, Any?>
         Exponea.fetchAppInboxItem(messageId = messageData.getRequired("id")) { nativeMessage ->
             // we need to fetch native MessageItem; method needs syncToken and customerIds to be fetched
@@ -301,10 +432,10 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
     }
 
     private fun trackAppInboxClick(args: Any?, result: Result) = runAsync(result) {
-        requireNotConfigured()
+        requireConfigured()
         val inputData = args as Map<String, Any?>
-        val messageData = inputData.getRequired<Map<String, Any?>>("message")
-        val action = AppInboxCoder.decodeAction(inputData.getRequired("action"))
+        val messageData = inputData.getRequired<HashMap<String, Any?>>("message").toMap()
+        val action = AppInboxCoder.decodeAction(inputData.getRequired<HashMap<String, Any?>>("action").toMap())
             ?: throw ExponeaException.common("AppInbox message action data are invalid. See logs")
         Exponea.fetchAppInboxItem(messageId = messageData.getRequired("id")) { nativeMessage ->
             // we need to fetch native MessageItem; method needs syncToken and customerIds to be fetched
@@ -318,10 +449,10 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
     }
 
     private fun trackAppInboxClickWithoutTrackingConsent(args: Any?, result: Result) = runAsync(result) {
-        requireNotConfigured()
+        requireConfigured()
         val inputData = args as Map<String, Any?>
-        val messageData = inputData.getRequired<Map<String, Any?>>("message")
-        val action = AppInboxCoder.decodeAction(inputData.getRequired("action"))
+        val messageData = inputData.getRequired<HashMap<String, Any?>>("message").toMap()
+        val action = AppInboxCoder.decodeAction(inputData.getRequired<HashMap<String, Any?>>("action").toMap())
             ?: throw ExponeaException.common("AppInbox message action data are invalid. See logs")
         Exponea.fetchAppInboxItem(messageId = messageData.getRequired("id")) { nativeMessage ->
             // we need to fetch native MessageItem; method needs syncToken and customerIds to be fetched
@@ -335,7 +466,7 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
     }
 
     private fun markAppInboxAsRead(args: Any?, result: Result) = runAsync(result) {
-        requireNotConfigured()
+        requireConfigured()
         val messageData = args as Map<String, Any?>
         Exponea.fetchAppInboxItem(messageId = messageData.getRequired("id")) { nativeMessage ->
             // we need to fetch native MessageItem; method needs syncToken and customerIds to be fetched
@@ -363,7 +494,7 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
     }
 
     private fun fetchAppInboxItem(args: Any?, result: Result) = runAsync(result) {
-        requireNotConfigured()
+        requireConfigured()
         val messageId = args as String
         Exponea.fetchAppInboxItem(messageId = messageId) { nativeMessage ->
             if (nativeMessage == null) {
@@ -375,6 +506,207 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
             }
         }
     }
+
+    private fun trackInAppContentBlockClick(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        val action = InAppContentBlockActionCoder.decode(data.getRequired<HashMap<String, Any?>>("action").toMap())
+        Exponea.trackInAppContentBlockClickWithoutTrackingConsent(placeholderId = placeholderId, message = contentBlock, action = action)
+    }
+
+    private fun trackInAppContentBlockClickWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        val action = InAppContentBlockActionCoder.decode(data.getRequired<HashMap<String, Any?>>("action").toMap())
+        Exponea.trackInAppContentBlockClickWithoutTrackingConsent(placeholderId = placeholderId, message = contentBlock, action = action)
+    }
+
+    private fun trackInAppContentBlockClose(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        Exponea.trackInAppContentBlockClose(placeholderId = placeholderId, message = contentBlock)
+    }
+
+    private fun trackInAppContentBlockCloseWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        Exponea.trackInAppContentBlockCloseWithoutTrackingConsent(placeholderId = placeholderId, message = contentBlock)
+    }
+
+    private fun trackInAppContentBlockShown(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        Exponea.trackInAppContentBlockShown(placeholderId = placeholderId, message = contentBlock)
+    }
+
+    private fun trackInAppContentBlockShownWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        Exponea.trackInAppContentBlockShownWithoutTrackingConsent(placeholderId = placeholderId, message = contentBlock)
+    }
+
+    private fun trackInAppContentBlockError(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        val errorMessage = data.getRequired<String>("errorMessage")
+        Exponea.trackInAppContentBlockError(placeholderId = placeholderId, message = contentBlock, errorMessage = errorMessage)
+    }
+
+    private fun trackInAppContentBlockErrorWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val placeholderId = data.getRequired<String>("placeholderId")
+        val contentBlockData = data.getRequired<String>("contentBlock")
+        val contentBlock = Gson().fromJson(contentBlockData, InAppContentBlock::class.java)
+        val errorMessage = data.getRequired<String>("errorMessage")
+        Exponea.trackInAppContentBlockErrorWithoutTrackingConsent(placeholderId = placeholderId, message = contentBlock, errorMessage = errorMessage)
+    }
+
+    private fun setInAppMessageActionHandler(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val params = args as Map<String, Any?>
+
+        InAppMessageActionStreamHandler.currentInstance.overrideDefaultBehavior = params.getRequired("overrideDefaultBehavior")
+        InAppMessageActionStreamHandler.currentInstance.trackActions = params.getRequired("trackActions")
+    }
+
+    private fun trackInAppMessageClick(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val message = InAppMessageCoder.decode(data.getRequired<HashMap<String, Any?>>("message").toMap())
+        val buttonData = data.getRequired<HashMap<String, Any?>>("button").toMap()
+        Exponea.trackInAppMessageClick(message = message, buttonText = buttonData.getRequired("text"), buttonLink = buttonData.getRequired("url"))
+    }
+
+    private fun trackInAppMessageClickWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val message = InAppMessageCoder.decode(data.getRequired<HashMap<String, Any?>>("message").toMap())
+        val buttonData = data.getRequired<HashMap<String, Any?>>("button").toMap()
+        Exponea.trackInAppMessageClickWithoutTrackingConsent(message = message, buttonText = buttonData.getRequired("text"), buttonLink = buttonData.getRequired("url"))
+    }
+
+    private fun trackInAppMessageClose(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val message = InAppMessageCoder.decode(data.getRequired<HashMap<String, Any?>>("message").toMap())
+        Exponea.trackInAppMessageClose(message = message, interaction = data.getRequired("interaction"))
+    }
+
+    private fun trackInAppMessageCloseWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val message = InAppMessageCoder.decode(data.getRequired<HashMap<String, Any?>>("message").toMap())
+        Exponea.trackInAppMessageCloseWithoutTrackingConsent(message = message, interaction = data.getRequired("interaction"))
+    }
+
+    private fun trackPaymentEvent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val timestamp = data.getOptional<Double>("timestamp")
+        val purchasedItem = PurchasedItemCoder.decode(data.getRequired<HashMap<String, Any?>>("purchasedItem").toMap())
+        Exponea.trackPaymentEvent(timestamp = timestamp ?: currentTimeSeconds(),  purchasedItem = purchasedItem)
+    }
+
+    private fun trackPushToken(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val token = args as String
+        Exponea.trackPushToken(token)
+    }
+
+    private fun trackHmsPushToken(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val token = args as String
+        Exponea.trackHmsPushToken(token)
+    }
+
+    private fun handlePushToken(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val token = args as String
+        Exponea.handleNewToken(activity ?: context, token)
+    }
+
+    private fun handleHmsPushToken(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val token = args as String
+        Exponea.handleNewHmsToken(activity ?: context, token)
+    }
+
+    private fun trackClickedPush(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val notification = NotificationCoder.decodeNotificationData(data)
+        val notificationAction = NotificationCoder.decodeNotificationAction(data)
+        val receivedSeconds = data.getNullSafely("receivedSeconds") ?: currentTimeSeconds()
+        Exponea.trackClickedPush(notification, notificationAction, receivedSeconds)
+    }
+
+    private fun trackClickedPushWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val notification = NotificationCoder.decodeNotificationData(data)
+        val notificationAction = NotificationCoder.decodeNotificationAction(data)
+        val receivedSeconds = data.getNullSafely("receivedSeconds") ?: currentTimeSeconds()
+        Exponea.trackClickedPushWithoutTrackingConsent(notification, notificationAction, receivedSeconds)
+    }
+
+    private fun trackDeliveredPush(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val notification = NotificationCoder.decodeNotificationData(data)
+        val receivedSeconds = data.getNullSafely("receivedSeconds") ?: currentTimeSeconds()
+        Exponea.trackDeliveredPush(notification, receivedSeconds)
+    }
+
+    private fun trackDeliveredPushWithoutTrackingConsent(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val data = args as Map<String, Any?>
+        val notification = NotificationCoder.decodeNotificationData(data)
+        val receivedSeconds = data.getNullSafely("receivedSeconds") ?: currentTimeSeconds()
+        Exponea.trackDeliveredPushWithoutTrackingConsent(notification, receivedSeconds)
+    }
+
+    private  fun isBloomreachNotification(args: Any?, result: Result) = runWithResult(result) {
+        requireConfigured()
+        val data = args as Map<String, String>
+        return@runWithResult Exponea.isExponeaPushNotification(data)
+    }
+
+    private fun handleCampaignClick(args: Any?, result: Result) = runWithNoResult(result) {
+        requireConfigured()
+        val campaignUrl = args as String
+        val campaignIntent = Intent()
+        campaignIntent.action = Intent.ACTION_VIEW
+        campaignIntent.data = Uri.parse(campaignUrl)
+        Exponea.handleCampaignIntent(campaignIntent, activity ?: context)
+    }
+
+    private fun handlePushNotificationOpened(args: Any?, result: Result) =
+        trackClickedPush(args, result)
+
+    private fun handlePushNotificationOpenedWithoutTrackingConsent(args: Any?, result: Result) =
+        trackClickedPushWithoutTrackingConsent(args, result)
 
     private fun requireConfigured() {
         if (!Exponea.isInitialized) {
@@ -425,6 +757,7 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
         Exponea.init(activity ?: context, configuration)
         this.configuration = configuration
         Exponea.notificationDataCallback = { ReceivedPushStreamHandler.handle(ReceivedPush(it)) }
+        Exponea.inAppMessageActionCallback = InAppMessageActionStreamHandler.currentInstance
         return@runWithResult true
     }
 
@@ -599,10 +932,16 @@ private class ExponeaMethodHandler(private val context: Context) : MethodCallHan
         Exponea.checkPushSetup = true
     }
 
-    private fun setAppInboxProvider(args: Any, result: Result) = runWithResult(result) {
+    private fun requestPushAuthorization(result: Result) = runAsync(result) {
+        Exponea.requestPushAuthorization(context) { granted ->
+            result.success(granted)
+        }
+    }
+
+    private fun setAppInboxProvider(args: Any, result: Result) = runWithNoResult(result) {
         val configMap = args as Map<String, Any?>
         val appInboxStyle = AppInboxStyleParser(configMap).parse()
-        Exponea.appInboxProvider = FlutterAppInboxProvider(appInboxStyle)
+        Exponea.appInboxProvider = StyledAppInboxProvider(appInboxStyle)
     }
 }
 
@@ -698,6 +1037,70 @@ class ReceivedPushStreamHandler : StreamHandler {
             sink.success(push.toMap())
             return true
         }
+        return false
+    }
+}
+
+/**
+ * Handles listeners for in-app message actions.
+ */
+class InAppMessageActionStreamHandler private constructor(
+    override var overrideDefaultBehavior: Boolean = false,
+    override var trackActions: Boolean = true,
+) : StreamHandler, InAppMessageCallback {
+    companion object {
+        var currentInstance: InAppMessageActionStreamHandler = InAppMessageActionStreamHandler()
+            private set
+    }
+
+    // We have to hold inAppMessage until plugin is initialized and listener set
+    private var pendingData: InAppMessageAction? = null
+
+    private var eventSink: EventSink? = null
+
+    override fun onListen(arguments: Any?, eSink: EventSink?) {
+        eventSink = eSink
+        pendingData?.let {
+            if (handle(it)) {
+                pendingData = null
+            }
+        }
+    }
+
+    override fun onCancel(arguments: Any?) {
+        eventSink = null
+        overrideDefaultBehavior = false
+        trackActions = true
+    }
+
+    override fun inAppMessageAction(
+        message: InAppMessage,
+        button: InAppMessageButton?,
+        interaction: Boolean,
+        context: Context
+    ) {
+        handle(
+            InAppMessageAction(
+                message = message, button = button, interaction = interaction
+            )
+        )
+    }
+
+    override fun inAppMessageError(message: InAppMessage?, errorMessage: String, context: Context) {
+        // not yet impl
+    }
+
+    override fun inAppMessageShown(message: InAppMessage, context: Context) {
+        // not yet impl
+    }
+
+    private fun handle(action: InAppMessageAction): Boolean {
+        val sink = eventSink
+        if (sink != null) {
+            sink.success(action.toMap())
+            return true
+        }
+        pendingData = action
         return false
     }
 }

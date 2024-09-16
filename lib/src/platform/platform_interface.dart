@@ -100,6 +100,12 @@ abstract class ExponeaPlatform extends PlatformInterface
   }
 
   @override
+  Future<bool> requestPushAuthorization() async {
+    throw UnimplementedError();
+  }
+
+  @Deprecated("Will be removed in a later version of the SDK, use 'requestPushAuthorization()' instead")
+  @override
   Future<bool> requestIosPushAuthorization() async {
     throw UnimplementedError();
   }
@@ -180,8 +186,136 @@ abstract class ExponeaPlatform extends PlatformInterface
   }
 
   @override
+  Future<void> trackInAppContentBlockClick(String placeholderId, InAppContentBlock contentBlock, InAppContentBlockAction action) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppContentBlockClickWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock, InAppContentBlockAction action) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppContentBlockClose(String placeholderId, InAppContentBlock contentBlock) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppContentBlockCloseWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppContentBlockShown(String placeholderId, InAppContentBlock contentBlock) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppContentBlockShownWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppContentBlockError(String placeholderId, InAppContentBlock contentBlock, String errorMessage) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppContentBlockErrorWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock, String errorMessage) async {
+      throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppMessageClick(InAppMessage message, InAppMessageButton button) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppMessageClickWithoutTrackingConsent(InAppMessage message, InAppMessageButton button) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppMessageClose(InAppMessage message, {bool interaction = true}) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackInAppMessageCloseWithoutTrackingConsent(InAppMessage message, {bool interaction = true}) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackPaymentEvent(PurchasedItem purchasedItem, {DateTime? timestamp}) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackPushToken(String token) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackHmsPushToken(String token) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> handlePushToken(String token) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> handleHmsPushToken(String token) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackClickedPush(Map<String, dynamic> data) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackClickedPushWithoutTrackingConsent(Map<String, dynamic> data) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackDeliveredPush(Map<String, dynamic> data) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> trackDeliveredPushWithoutTrackingConsent(Map<String, dynamic> data) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<bool> isBloomreachNotification(Map<String, String> data) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> handleCampaignClick(String url) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> handlePushNotificationOpened(Map<String, dynamic> data) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> handlePushNotificationOpenedWithoutTrackingConsent(Map<String, dynamic> data) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Stream<OpenedPush> get openedPushStream => throw UnimplementedError();
 
   @override
   Stream<ReceivedPush> get receivedPushStream => throw UnimplementedError();
+
+  @override
+  Stream<InAppMessageAction> inAppMessageActionStream({bool overrideDefaultBehavior = false, bool trackActions = true}) => throw UnimplementedError();
 }

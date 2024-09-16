@@ -54,6 +54,11 @@ class ExponeaPlugin implements BaseInterface {
   Future<bool> isConfigured() => _platform.isConfigured();
 
   @override
+  Future<bool> requestPushAuthorization() =>
+      _platform.requestPushAuthorization();
+
+  @Deprecated("Will be removed in a later version of the SDK, use 'requestPushAuthorization()' instead")
+  @override
   Future<bool> requestIosPushAuthorization() =>
       _platform.requestIosPushAuthorization();
 
@@ -122,8 +127,105 @@ class ExponeaPlugin implements BaseInterface {
       _platform.fetchAppInboxItem(messageId);
 
   @override
+  Future<void> trackInAppContentBlockClick(String placeholderId, InAppContentBlock contentBlock, InAppContentBlockAction action) =>
+      _platform.trackInAppContentBlockClick(placeholderId, contentBlock, action);
+
+  @override
+  Future<void> trackInAppContentBlockClickWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock, InAppContentBlockAction action) =>
+      _platform.trackInAppContentBlockClickWithoutTrackingConsent(placeholderId, contentBlock, action);
+
+  @override
+  Future<void> trackInAppContentBlockClose(String placeholderId, InAppContentBlock contentBlock) =>
+      _platform.trackInAppContentBlockClose(placeholderId, contentBlock);
+
+  @override
+  Future<void> trackInAppContentBlockCloseWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock) =>
+      _platform.trackInAppContentBlockCloseWithoutTrackingConsent(placeholderId, contentBlock);
+
+  @override
+  Future<void> trackInAppContentBlockShown(String placeholderId, InAppContentBlock contentBlock) =>
+      _platform.trackInAppContentBlockShown(placeholderId, contentBlock);
+
+  @override
+  Future<void> trackInAppContentBlockShownWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock) =>
+      _platform.trackInAppContentBlockShownWithoutTrackingConsent(placeholderId, contentBlock);
+
+  @override
+  Future<void> trackInAppContentBlockError(String placeholderId, InAppContentBlock contentBlock, String errorMessage) =>
+      _platform.trackInAppContentBlockError(placeholderId, contentBlock, errorMessage);
+
+  @override
+  Future<void> trackInAppContentBlockErrorWithoutTrackingConsent(String placeholderId, InAppContentBlock contentBlock, String errorMessage) =>
+      _platform.trackInAppContentBlockErrorWithoutTrackingConsent(placeholderId, contentBlock, errorMessage);
+
+  @override    
+  Future<void> trackInAppMessageClick(InAppMessage message, InAppMessageButton button) =>
+      _platform.trackInAppMessageClick(message, button);
+
+  @override
+  Future<void> trackInAppMessageClickWithoutTrackingConsent(InAppMessage message, InAppMessageButton button) =>
+      _platform.trackInAppMessageClickWithoutTrackingConsent(message, button);
+
+  @override
+  Future<void> trackInAppMessageClose(InAppMessage message, {bool interaction = true}) =>
+      _platform.trackInAppMessageClose(message, interaction: interaction);
+
+  @override
+  Future<void> trackInAppMessageCloseWithoutTrackingConsent(InAppMessage message, {bool interaction = true}) =>
+      _platform.trackInAppMessageCloseWithoutTrackingConsent(message, interaction: interaction);
+
+  @override
+  Future<void> trackPaymentEvent(PurchasedItem purchasedItem, {DateTime? timestamp}) =>
+      _platform.trackPaymentEvent(purchasedItem, timestamp: timestamp);
+
+  @override
+  Future<void> trackPushToken(String token) => _platform.trackPushToken(token);
+
+  @override
+  Future<void> trackHmsPushToken(String token) => _platform.trackHmsPushToken(token);
+
+  @override
+  Future<void> handlePushToken(String token) => _platform.handlePushToken(token);
+
+  @override
+  Future<void> handleHmsPushToken(String token) => _platform.handleHmsPushToken(token);
+
+  @override
+  Future<void> trackClickedPush(Map<String, dynamic> data) => _platform.trackClickedPush(data);
+
+  @override
+  Future<void> trackClickedPushWithoutTrackingConsent(Map<String, dynamic> data) =>
+      _platform.trackClickedPushWithoutTrackingConsent(data);
+
+  @override
+  Future<void> trackDeliveredPush(Map<String, dynamic> data) => _platform.trackDeliveredPush(data);
+
+  @override
+  Future<void> trackDeliveredPushWithoutTrackingConsent(Map<String, dynamic> data) =>
+      _platform.trackDeliveredPushWithoutTrackingConsent(data);
+
+  @override
+  Future<bool> isBloomreachNotification(Map<String, String> data) => _platform.isBloomreachNotification(data);
+
+  @override
+  Future<void> handleCampaignClick(String url) => _platform.handleCampaignClick(url);
+
+  @override
   Stream<OpenedPush> get openedPushStream => _platform.openedPushStream;
 
   @override
   Stream<ReceivedPush> get receivedPushStream => _platform.receivedPushStream;
+
+  @override
+  Stream<InAppMessageAction> inAppMessageActionStream({bool overrideDefaultBehavior = false, bool trackActions = true}) =>
+      _platform.inAppMessageActionStream(overrideDefaultBehavior: overrideDefaultBehavior, trackActions : trackActions);
+
+  @override
+  Future<void> handlePushNotificationOpened(Map<String, dynamic> data) =>
+      _platform.handlePushNotificationOpened(data);
+
+  @override
+  Future<void> handlePushNotificationOpenedWithoutTrackingConsent(Map<String, dynamic> data) =>
+      _platform.handlePushNotificationOpenedWithoutTrackingConsent(data);
+
 }

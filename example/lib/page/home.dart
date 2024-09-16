@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'in_app_cb_page.dart';
+
 final _plugin = ExponeaPlugin();
 
 class HomePage extends StatefulWidget {
@@ -28,11 +30,15 @@ class _HomePageState extends State<HomePage> {
   final _pushController = ValueNotifier<String>('- none -');
   late final StreamSubscription<OpenedPush> _openedPushSub;
   late final StreamSubscription<ReceivedPush> _receivedPushSub;
+  late final StreamSubscription<InAppMessageAction> _inAppMessageActionSub;
 
   @override
   void initState() {
     _openedPushSub = _plugin.openedPushStream.listen(_onPushEvent);
     _receivedPushSub = _plugin.receivedPushStream.listen(_onPushEvent);
+    _inAppMessageActionSub = _plugin
+        .inAppMessageActionStream()
+        .listen(_onInAppMessageActionEvent);
     super.initState();
   }
 
@@ -40,6 +46,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _openedPushSub.cancel();
     _receivedPushSub.cancel();
+    _inAppMessageActionSub.cancel();
     _flushPeriodController.dispose();
     _flushModeController.dispose();
     _pushController.dispose();
@@ -65,13 +72,12 @@ class _HomePageState extends State<HomePage> {
                     builder: (context, value, _) => Text(value),
                   ),
                 ),
-                if (Platform.isIOS)
-                  ListTile(
-                    title: ElevatedButton(
-                      onPressed: () => _requestIosPushAuthorization(context),
-                      child: const Text('Request Push Authorization'),
-                    ),
+                ListTile(
+                  title: ElevatedButton(
+                    onPressed: () => _requestPushAuthorization(context),
+                    child: const Text('Request Push Authorization'),
                   ),
+                ),
                 ListTile(
                   title: ElevatedButton(
                     onPressed: () => _checkIsConfigured(context),
@@ -317,6 +323,38 @@ class _HomePageState extends State<HomePage> {
                     child: const Text('Fetch first'),
                   ),
                 ),
+                ListTile(
+                  title: ElevatedButton(
+                    onPressed: () => _markFirstAppInboxItemAsRead(context),
+                    child: const Text('Mark first as read'),
+                  ),
+                ),
+                ListTile(
+                  title: ElevatedButton(
+                    onPressed: () => _trackFirstAppInboxItemAsOpened(context),
+                    child: const Text('Track first as Opened'),
+                  ),
+                ),
+                ListTile(
+                  title: ElevatedButton(
+                    onPressed: () => _trackFirstAppInboxItemAsClicked(context),
+                    child: const Text('Track first as Clicked'),
+                  ),
+                ),
+                ListTile(
+                  title: ElevatedButton(
+                    onPressed: () => _trackPaymentEvent(context),
+                    child: const Text('Track payment event'),
+                  ),
+                ),
+                ListTile(
+                  title: ElevatedButton(
+                    onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (context) => const InAppCbPage())),
+                    child: const Text('In App CB Example Page'),
+                  ),
+                ),
               ],
             ),
           ),
@@ -335,6 +373,41 @@ class _HomePageState extends State<HomePage> {
         var messages = await _plugin.fetchAppInbox();
         if (messages.isEmpty) return "EMPTY APPINBOX";
         return messages[0];
+      });
+
+  Future<void> _markFirstAppInboxItemAsRead(BuildContext context) =>
+      _runAndShowResult(context, () async {
+        var messages = await _plugin.fetchAppInbox();
+        if (messages.isEmpty) return "EMPTY APPINBOX";
+        return await _plugin.markAppInboxAsRead(messages.first);
+      });
+
+  Future<void> _trackFirstAppInboxItemAsOpened(BuildContext context) async {
+    var messages = await _plugin.fetchAppInbox();
+    if (messages.isEmpty) return;
+    return await _plugin.trackAppInboxOpened(messages.first);
+  }
+
+  Future<void> _trackFirstAppInboxItemAsClicked(BuildContext context) async {
+    var messages = await _plugin.fetchAppInbox();
+    if (messages.isEmpty) return;
+    return await _plugin.trackAppInboxClick(
+        AppInboxAction(
+            title: 'Google', action: 'browser', url: 'https://www.google.com'),
+        messages.first);
+  }
+
+  Future<void> _trackPaymentEvent(BuildContext context) =>
+      _runAndShowResult(context, () async {
+        return await _plugin.trackPaymentEvent(
+          const PurchasedItem(
+            value: 12.34,
+            currency: "EUR",
+            paymentSystem: "Virtual",
+            productId: "handbag",
+            productTitle: "Awesome leather handbag",
+          ),
+        );
       });
 
   Future<void> _checkIsConfigured(BuildContext context) =>
@@ -426,9 +499,9 @@ class _HomePageState extends State<HomePage> {
   Future<void> _trackEvent(BuildContext context) =>
       _runAndShowResult(context, () async {
         const event = Event(
-          name: 'test_name',
+          name: 'event_name',
           properties: {
-            'bool': true,
+            'property': '5s',
             'int': 12,
             'double': 34.56,
             'string': 'test'
@@ -463,9 +536,9 @@ class _HomePageState extends State<HomePage> {
         return await _plugin.setLogLevel(level);
       });
 
-  Future<void> _requestIosPushAuthorization(BuildContext context) =>
+  Future<void> _requestPushAuthorization(BuildContext context) =>
       _runAndShowResult(context, () async {
-        return await _plugin.requestIosPushAuthorization();
+        return await _plugin.requestPushAuthorization();
       });
 
   Future<void> _runAndShowResult(
@@ -493,4 +566,9 @@ class _HomePageState extends State<HomePage> {
   void _onPushEvent(dynamic push) {
     _pushController.value = '$push\nat: ${DateTime.now().toIso8601String()}';
   }
+
+  void _onInAppMessageActionEvent(InAppMessageAction action) {
+    print('received in-app action: $action');
+  }
+
 }
