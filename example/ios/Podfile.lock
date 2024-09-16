@@ -1,12 +1,5 @@
 PODS:
   - AnyCodable-FlightSchool (0.6.3)
-  - exponea (0.0.1):
-    - AnyCodable-FlightSchool (= 0.6.3)
-    - ExponeaSDK (= 2.28.0)
-    - Flutter
-  - ExponeaSDK (2.28.0):
-    - SwiftSoup (= 2.6.1)
-  - ExponeaSDK-Notifications (2.28.0)
   - Flutter (1.0.0)
   - Nimble (9.2.1)
   - Quick (4.0.0)
