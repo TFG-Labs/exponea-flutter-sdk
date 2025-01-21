@@ -80,7 +80,7 @@ protocol IsExponeaFlutterSDK {
 public class ExponeaFlutterVersion: NSObject, ExponeaVersionProvider {
     required public override init() { }
     public func getVersion() -> String {
-        "1.7.1"
+        "2.0.0"
     }
 }
 
@@ -861,7 +861,12 @@ public class SwiftExponeaPlugin: NSObject, FlutterPlugin {
             ))
             return
         }
-        exponeaInstance.trackInAppMessageClose(message: message, isUserInteraction: interaction)
+        var buttonText: String? = nil
+        let buttonData: NSDictionary? = try? data.getOptionalSafely(property: "button")
+        if let buttonData {
+             buttonText = try? buttonData.getRequiredSafely(property: "text")
+        }
+        exponeaInstance.trackInAppMessageClose(message: message, buttonText: buttonText, isUserInteraction: interaction)
         result(nil)
     }
 
@@ -877,7 +882,12 @@ public class SwiftExponeaPlugin: NSObject, FlutterPlugin {
             ))
             return
         }
-        exponeaInstance.trackInAppMessageCloseClickWithoutTrackingConsent(message: message, isUserInteraction: interaction)
+        var buttonText: String? = nil
+        let buttonData: NSDictionary? = try? data.getOptionalSafely(property: "button")
+        if let buttonData {
+             buttonText = try? buttonData.getRequiredSafely(property: "text")
+        }
+        exponeaInstance.trackInAppMessageCloseClickWithoutTrackingConsent(message: message, buttonText: buttonText, isUserInteraction: interaction)
         result(nil)
     }
 
@@ -1059,7 +1069,8 @@ public class SwiftExponeaPlugin: NSObject, FlutterPlugin {
                 inAppContentBlocksPlaceholders: config.inAppContentBlockPlaceholdersAutoLoad,
                 flushingSetup: config.flushingSetup,
                 allowDefaultCustomerProperties: config.allowDefaultCustomerProperties,
-                advancedAuthEnabled: config.advancedAuthEnabled
+                advancedAuthEnabled: config.advancedAuthEnabled, 
+                manualSessionAutoClose: config.manualSessionAutoClose
             )
             exponeaInstance.pushNotificationsDelegate = self
             exponeaInstance.inAppMessagesDelegate = InAppMessageActionStreamHandler.currentInstance
@@ -1245,8 +1256,13 @@ public class SwiftExponeaPlugin: NSObject, FlutterPlugin {
                             result(error)
                             return
                         }
-                        let outData = responseValue.map { $0.userData.formattedData() }
-                        result(outData)
+                        do {
+                            let outData = try responseValue.map{ try $0.userData.formattedData() }
+                            result(outData)
+                        } catch {
+                            let error = FlutterError(code: errorCode, message: error.localizedDescription, details: nil)
+                            result(error)
+                        }
                     case .failure(let error):
                         let error = FlutterError(code: errorCode, message: error.localizedDescription, details: nil)
                         result(error)
