@@ -1,11 +1,10 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.exponea">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application>
         <meta-data android:name="ExponeaFlutterSDK" android:value="true" />
-        <meta-data android:name="ExponeaFlutterSDKVersion" android:value="1.7.1" />
+        <meta-data android:name="ExponeaFlutterSDKVersion" android:value="2.0.0" />
         <receiver
             android:name=".ExponeaPushReceiver"
             android:enabled="true"
